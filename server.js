@@ -76,14 +76,16 @@ app.post("/api/feishu/query", async (req, res) => {
   
   // 验证房间号
   if (!roomId) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send("❌ 请提供房间号\n\n使用方式：输入房间号\n例如：433");
+    return res.json({ 
+      message: "❌ 请提供房间号\n\n使用方式：输入房间号\n例如：433"
+    });
   }
   
   const roomIdStr = String(roomId).trim();
   if (!/^\d+$/.test(roomIdStr)) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send(`❌ 房间号格式不正确：${roomIdStr}\n\n请输入纯数字，例如：433`);
+    return res.json({ 
+      message: `❌ 房间号格式不正确：${roomIdStr}\n\n请输入纯数字，例如：433`
+    });
   }
 
   const power = await fetchPower(roomIdStr);
@@ -94,8 +96,9 @@ app.post("/api/feishu/query", async (req, res) => {
   });
   
   if (!power) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.send(`❌ 无法获取电量\n\n房间：${roomIdStr}\n可能原因：\n• 房间号不存在\n• 学校系统暂时不可用\n\n查询时间：${timeStr}`);
+    return res.json({ 
+      message: `❌ 无法获取电量\n\n房间：${roomIdStr}\n可能原因：\n• 房间号不存在\n• 学校系统暂时不可用\n\n查询时间：${timeStr}`
+    });
   }
 
   const powerNum = parseFloat(power);
@@ -115,9 +118,14 @@ app.post("/api/feishu/query", async (req, res) => {
 
   const message = `${emoji} 【电量查询】\n\n房间号：        ${roomIdStr}\n剩余电量：    ${powerNum.toFixed(2)} 度\n状态：            ${status}\n\n更新时间：${timeStr}`;
   
-  // 返回纯文本（适配飞书工作流）
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.send(message);
+  // 返回 JSON 格式
+  res.json({ 
+    message: message,
+    room: roomIdStr,
+    power: powerNum,
+    status: status,
+    timestamp: timeStr
+  });
 });
 
 // 启动服务器
