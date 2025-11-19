@@ -6,6 +6,9 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 解析 JSON 请求体
+app.use(express.json());
+
 // 提供静态文件服务
 app.use(express.static("public"));
 
@@ -64,6 +67,72 @@ app.get("/api/power", async (req, res) => {
     room: parseInt(roomId), 
     power: parseFloat(power),
     timestamp: new Date().toISOString()
+  });
+});
+
+// 飞书机器人专用接口
+app.post("/api/feishu/query", async (req, res) => {
+  const roomId = req.body.room || req.body.roomId || req.body.roomid;
+  
+  // 验证房间号
+  if (!roomId) {
+    return res.json({ 
+      msg_type: "text",
+      content: {
+        text: "❌ 请提供房间号\n\n使用方式：输入房间号\n例如：433"
+      }
+    });
+  }
+  
+  const roomIdStr = String(roomId).trim();
+  if (!/^\d+$/.test(roomIdStr)) {
+    return res.json({ 
+      msg_type: "text",
+      content: {
+        text: `❌ 房间号格式不正确：${roomIdStr}\n\n请输入纯数字，例如：433`
+      }
+    });
+  }
+
+  const power = await fetchPower(roomIdStr);
+  const now = new Date();
+  const timeStr = now.toLocaleString('zh-CN', { 
+    timeZone: 'Asia/Shanghai',
+    hour12: false
+  });
+  
+  if (!power) {
+    return res.json({ 
+      msg_type: "text",
+      content: {
+        text: `❌ 无法获取电量\n\n房间：${roomIdStr}\n可能原因：\n• 房间号不存在\n• 学校系统暂时不可用\n\n查询时间：${timeStr}`
+      }
+    });
+  }
+
+  const powerNum = parseFloat(power);
+  let status = "";
+  let emoji = "";
+  
+  if (powerNum > 20) {
+    status = "电量充足";
+    emoji = "✅";
+  } else if (powerNum > 10) {
+    status = "电量偏低";
+    emoji = "⚠️";
+  } else {
+    status = "电量不足";
+    emoji = "🔴";
+  }
+
+  const message = `${emoji} 【电量查询】\n\n房间号：        ${roomIdStr}\n剩余电量：    ${powerNum.toFixed(2)} 度\n状态：            ${status}\n\n更新时间：${timeStr}`;
+  
+  // 返回飞书标准格式
+  res.json({ 
+    msg_type: "text",
+    content: {
+      text: message
+    }
   });
 });
 
