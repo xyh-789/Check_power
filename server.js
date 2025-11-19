@@ -2,9 +2,16 @@ const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const path = require("path");
+const fs = require("fs");
+const cron = require("node-cron");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 数据文件路径
+const DATA_FILE = path.join(__dirname, "power_data.json");
+// 监控的寝室号
+const MONITORED_ROOM = "433";
 
 // 飞书请求特殊处理 - 必须在其他中间件之前
 app.use('/api/feishu', express.raw({ type: '*/*' }));
@@ -18,6 +25,64 @@ app.use(express.text());
 
 // 提供静态文件服务
 app.use(express.static("public"));
+
+// 读取电量数据
+function readPowerData() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      return {};
+    }
+    const data = fs.readFileSync(DATA_FILE, "utf8");
+    return JSON.parse(data);
+  } catch (e) {
+    console.error("读取数据文件失败:", e.message);
+    return {};
+  }
+}
+
+// 保存电量数据
+function savePowerData(data) {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+    console.log("数据已保存:", data);
+  } catch (e) {
+    console.error("保存数据文件失败:", e.message);
+  }
+}
+
+// 每天 0 点更新电量数据
+async function updateDailyPower() {
+  console.log("========== 执行每日电量更新 ==========");
+  console.log("时间:", new Date().toLocaleString("zh-CN"));
+  
+  const power = await fetchPower(MONITORED_ROOM);
+  if (!power) {
+    console.error("无法获取 433 寝室电量，跳过本次更新");
+    return;
+  }
+
+  const powerNum = parseFloat(power);
+  const data = readPowerData();
+  
+  // 如果有今日数据，将其移到昨日
+  if (data[MONITORED_ROOM]) {
+    data[MONITORED_ROOM].yesterday = data[MONITORED_ROOM].today;
+  } else {
+    // 首次运行，初始化数据
+    data[MONITORED_ROOM] = {
+      yesterday: null,
+      today: null
+    };
+  }
+  
+  // 保存新的今日数据
+  data[MONITORED_ROOM].today = powerNum;
+  data[MONITORED_ROOM].lastUpdate = new Date().toISOString();
+  
+  savePowerData(data);
+  console.log(`433 寝室电量已更新: 今日 0 点 ${powerNum} 度`);
+  console.log("=======================================");
+}
 
 async function fetchPower(roomId) {
   try {
@@ -69,18 +134,32 @@ app.get("/api/power", async (req, res) => {
       msg: "无法获取电量，请检查房间号是否正确或学校系统暂时不可用" 
     });
   }
-  res.json({ 
+  
+  const responseData = { 
     success: true, 
     room: parseInt(roomId), 
     power: parseFloat(power),
     timestamp: new Date().toISOString()
-  });
+  };
+  
+  // 只对 433 寝室添加昨日用电量
+  if (roomId === MONITORED_ROOM) {
+    const data = readPowerData();
+    if (data[MONITORED_ROOM] && data[MONITORED_ROOM].yesterday !== null && data[MONITORED_ROOM].today !== null) {
+      const yesterdayUsage = data[MONITORED_ROOM].yesterday - data[MONITORED_ROOM].today;
+      responseData.yesterdayUsage = parseFloat(yesterdayUsage.toFixed(2));
+      responseData.yesterdayPower = data[MONITORED_ROOM].yesterday;
+      responseData.todayPower = data[MONITORED_ROOM].today;
+    }
+  }
+  
+  res.json(responseData);
 });
 
 // 飞书机器人专用接口
 app.post("/api/feishu/query", async (req, res) => {
   let roomId;
-  
+  let isAutoQuery = false;
   try {
     // 获取原始数据
     const rawBody = req.body.toString('utf8');
@@ -250,8 +329,18 @@ ${emoji} 【这是${roomIdStr}寝室的电量查询】
   res.json(successResponse);
 });
 
+// 启动定时任务：每天 0:00 执行
+cron.schedule("0 0 * * *", () => {
+  updateDailyPower();
+}, {
+  timezone: "Asia/Shanghai"
+});
+
+console.log("定时任务已启动：每天 0:00 更新 433 寝室电量数据");
+
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`服务器已启动：http://localhost:${PORT}`);
+  console.log(`监控寝室：${MONITORED_ROOM}`);
 });
 

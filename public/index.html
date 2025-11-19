@@ -306,6 +306,12 @@
                             <span class="info-value">--</span>
                         </div>
                     </div>
+                    <div class="info-row" id="yesterdayUsageRow" style="display: none;">
+                        <span class="info-label">昨日用电</span>
+                        <div id="yesterdayUsageDisplay">
+                            <span class="info-value">--</span>
+                        </div>
+                    </div>
                     <div class="info-row">
                         <span class="info-label">状态</span>
                         <span id="statusBadge" class="status-badge status-success">正常</span>
@@ -378,6 +384,19 @@
                         <span class="power-unit">度</span>
                     `;
 
+                    // 只对 433 寝室显示昨日用电量
+                    const yesterdayUsageRow = document.getElementById('yesterdayUsageRow');
+                    const yesterdayUsageDisplay = document.getElementById('yesterdayUsageDisplay');
+                    if (roomId === '433' && data.yesterdayUsage !== undefined) {
+                        yesterdayUsageRow.style.display = 'flex';
+                        yesterdayUsageDisplay.innerHTML = `
+                            <span class="power-value">${data.yesterdayUsage.toFixed(2)}</span>
+                            <span class="power-unit">度</span>
+                        `;
+                    } else {
+                        yesterdayUsageRow.style.display = 'none';
+                    }
+
                     // 更新状态标签
                     if (power > 20) {
                         statusBadge.className = 'status-badge status-success';
@@ -435,6 +454,19 @@
                         <span class="power-value">${power.toFixed(2)}</span>
                         <span class="power-unit">度</span>
                     `;
+
+                    // 只对 433 寝室更新昨日用电量
+                    const yesterdayUsageRow = document.getElementById('yesterdayUsageRow');
+                    const yesterdayUsageDisplay = document.getElementById('yesterdayUsageDisplay');
+                    if (roomId === '433' && data.yesterdayUsage !== undefined) {
+                        yesterdayUsageRow.style.display = 'flex';
+                        yesterdayUsageDisplay.innerHTML = `
+                            <span class="power-value">${data.yesterdayUsage.toFixed(2)}</span>
+                            <span class="power-unit">度</span>
+                        `;
+                    } else {
+                        yesterdayUsageRow.style.display = 'none';
+                    }
 
                     // 更新状态标签
                     if (power > 20) {
