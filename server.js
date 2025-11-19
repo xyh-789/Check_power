@@ -6,6 +6,9 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 飞书请求特殊处理 - 必须在其他中间件之前
+app.use('/api/feishu', express.raw({ type: '*/*' }));
+
 // 解析 JSON 请求体
 app.use(express.json());
 // 解析 URL 编码的表单数据
@@ -76,30 +79,39 @@ app.get("/api/power", async (req, res) => {
 
 // 飞书机器人专用接口
 app.post("/api/feishu/query", async (req, res) => {
-  // 打印请求信息用于调试
-  console.log("========== 飞书请求信息 ==========");
-  console.log("请求头 Content-Type:", req.headers['content-type']);
-  console.log("req.body 类型:", typeof req.body);
-  console.log("req.body 内容:", JSON.stringify(req.body, null, 2));
-  console.log("req.query 内容:", JSON.stringify(req.query, null, 2));
-  console.log("原始请求体:", req.body);
-  console.log("=====================================");
-  
-  // 支持多种请求格式
   let roomId;
   
-  // 尝试从不同位置获取房间号
-  if (typeof req.body === 'string') {
-    // 纯文本格式：直接是房间号
-    roomId = req.body.trim();
-  } else if (typeof req.body === 'object') {
-    // JSON 或表单格式
-    roomId = req.body.room || req.body.roomId || req.body.roomid;
-  }
-  
-  // 如果还是没有，尝试从 query 参数获取
-  if (!roomId) {
-    roomId = req.query.room || req.query.roomId || req.query.roomid;
+  try {
+    // 获取原始数据
+    const rawBody = req.body.toString('utf8');
+    
+    // 打印请求信息用于调试
+    console.log("========== 飞书请求信息 ==========");
+    console.log("请求头 Content-Type:", req.headers['content-type']);
+    console.log("原始请求体:", rawBody);
+    console.log("req.query:", JSON.stringify(req.query, null, 2));
+    console.log("=====================================");
+    
+    // 尝试解析 JSON
+    try {
+      const jsonBody = JSON.parse(rawBody);
+      roomId = jsonBody.room || jsonBody.roomId || jsonBody.roomid;
+      console.log("解析 JSON 成功，房间号:", roomId);
+    } catch (e) {
+      // JSON 解析失败，当作纯文本处理
+      console.log("JSON 解析失败，当作纯文本处理");
+      roomId = rawBody.trim();
+    }
+    
+    // 如果还是没有，尝试从 query 参数获取
+    if (!roomId) {
+      roomId = req.query.room || req.query.roomId || req.query.roomid;
+    }
+  } catch (error) {
+    console.error("处理请求出错:", error);
+    return res.json({
+      message: "❌ 请求处理出错\n\n错误信息：" + error.message
+    });
   }
   
   // 验证房间号
