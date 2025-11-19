@@ -89,18 +89,44 @@ app.post("/api/feishu/query", async (req, res) => {
     console.log("========== 飞书请求信息 ==========");
     console.log("请求头 Content-Type:", req.headers['content-type']);
     console.log("原始请求体:", rawBody);
+    console.log("请求体长度:", rawBody.length);
+    console.log("请求体字符码:", Array.from(rawBody).map(c => c.charCodeAt(0)).join(','));
     console.log("req.query:", JSON.stringify(req.query, null, 2));
     console.log("=====================================");
     
-    // 尝试解析 JSON
+    // 尝试解析 JSON（先清理格式）
     try {
-      const jsonBody = JSON.parse(rawBody);
+      // 更严格地清理 JSON：去掉所有控制字符，只保留必要的空格
+      let cleanedBody = rawBody
+        .replace(/[\r\n\t]/g, '')  // 去掉换行和制表符
+        .replace(/\s+/g, ' ')       // 多个空格变一个
+        .trim();
+      
+      console.log("清理后的请求体:", cleanedBody);
+      console.log("清理后长度:", cleanedBody.length);
+      
+      const jsonBody = JSON.parse(cleanedBody);
       roomId = jsonBody.room || jsonBody.roomId || jsonBody.roomid;
-      console.log("解析 JSON 成功，房间号:", roomId);
+      console.log("解析 JSON 成功，原始房间号:", roomId);
+      
+      // 处理飞书变量模板 {{xxx}}
+      if (roomId && typeof roomId === 'string') {
+        const match = roomId.match(/\{\{(.+?)\}\}/);
+        if (match) {
+          roomId = match[1].trim();
+          console.log("从模板中提取房间号:", roomId);
+        }
+      }
     } catch (e) {
       // JSON 解析失败，当作纯文本处理
-      console.log("JSON 解析失败，当作纯文本处理");
+      console.log("JSON 解析失败，当作纯文本处理，错误:", e.message);
       roomId = rawBody.trim();
+      
+      // 尝试从纯文本中提取房间号
+      const match = roomId.match(/\{\{(.+?)\}\}/);
+      if (match) {
+        roomId = match[1].trim();
+      }
     }
     
     // 如果还是没有，尝试从 query 参数获取
