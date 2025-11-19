@@ -107,7 +107,8 @@ app.post("/api/feishu/query", async (req, res) => {
       
       const jsonBody = JSON.parse(cleanedBody);
       roomId = jsonBody.room || jsonBody.roomId || jsonBody.roomid;
-      console.log("解析 JSON 成功，原始房间号:", roomId);
+      isAutoQuery = jsonBody.auto === true;  // 获取自动查询标志
+      console.log("解析 JSON 成功，原始房间号:", roomId, "自动查询:", isAutoQuery);
       
       // 处理飞书变量模板 {{xxx}}
       if (roomId && typeof roomId === 'string') {
@@ -192,7 +193,20 @@ app.post("/api/feishu/query", async (req, res) => {
     emoji = "🔴";
   }
 
-  // 特殊处理：433 寝室电量小于 5 度时发送警告消息
+  // 特殊处理：433 寝室定时查询时，只在电量小于 5 度时发送警告消息
+  if (isAutoQuery && roomIdStr === "433" && powerNum >= 5) {
+    // 433 寝室定时查询且电量充足时，返回空消息（飞书不会发送）
+    const emptyResponse = { 
+      message: "",
+      room: roomIdStr,
+      power: powerNum,
+      status: status,
+      timestamp: timeStr
+    };
+    console.log(">>> 433 寝室定时查询，电量充足，不发送消息");
+    return res.json(emptyResponse);
+  }
+  
   let message;
   if (roomIdStr === "433" && powerNum < 5) {
     message = `╔═══════════════════╗
@@ -209,6 +223,7 @@ app.post("/api/feishu/query", async (req, res) => {
 ━━━━━━━━━━━━━━━━━━━`;
     console.log(">>> 433 寝室电量低于 5 度，发送警告消息");
   } else {
+    // 其他寝室正常显示
     message = `╔═══════════════════╗
 ${emoji} 【这是${roomIdStr}寝室的电量查询】
 ╚═══════════════════╝
