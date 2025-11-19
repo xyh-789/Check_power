@@ -210,7 +210,7 @@ app.post("/api/feishu/query", async (req, res) => {
     console.log(">>> 433 寝室电量低于 5 度，发送警告消息");
   } else {
     message = `╔═══════════════════╗
-${emoji} 【这是您的寝室电量查询】
+${emoji} 【这是${roomIdStr}寝室的电量查询】
 ╚═══════════════════╝
 
 🏠 房间号：${roomIdStr}
