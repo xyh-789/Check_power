@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 3000;
 
 // 解析 JSON 请求体
 app.use(express.json());
+// 解析 URL 编码的表单数据
+app.use(express.urlencoded({ extended: true }));
+// 解析纯文本
+app.use(express.text());
 
 // 提供静态文件服务
 app.use(express.static("public"));
@@ -72,7 +76,31 @@ app.get("/api/power", async (req, res) => {
 
 // 飞书机器人专用接口
 app.post("/api/feishu/query", async (req, res) => {
-  const roomId = req.body.room || req.body.roomId || req.body.roomid;
+  // 打印请求信息用于调试
+  console.log("========== 飞书请求信息 ==========");
+  console.log("请求头 Content-Type:", req.headers['content-type']);
+  console.log("req.body 类型:", typeof req.body);
+  console.log("req.body 内容:", JSON.stringify(req.body, null, 2));
+  console.log("req.query 内容:", JSON.stringify(req.query, null, 2));
+  console.log("原始请求体:", req.body);
+  console.log("=====================================");
+  
+  // 支持多种请求格式
+  let roomId;
+  
+  // 尝试从不同位置获取房间号
+  if (typeof req.body === 'string') {
+    // 纯文本格式：直接是房间号
+    roomId = req.body.trim();
+  } else if (typeof req.body === 'object') {
+    // JSON 或表单格式
+    roomId = req.body.room || req.body.roomId || req.body.roomid;
+  }
+  
+  // 如果还是没有，尝试从 query 参数获取
+  if (!roomId) {
+    roomId = req.query.room || req.query.roomId || req.query.roomid;
+  }
   
   // 验证房间号
   if (!roomId) {
