@@ -1,0 +1,74 @@
+const express = require("express");
+const axios = require("axios");
+const cheerio = require("cheerio");
+const path = require("path");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// 提供静态文件服务
+app.use(express.static("public"));
+
+async function fetchPower(roomId) {
+  try {
+    const url = `https://www.cqie.edu.cn:809/epay/wxpage/wanxiao/eleresult?sysid=1&roomid=${roomId}&areaid=2&buildid=6`;
+    const resp = await axios.get(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Linux; Android 9; SM-S9110 Build/PQ3A.190605.09291615; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.131 Mobile Safari/537.36 Wanxiao/5.8.9 Wmxy/5.8.22"
+      }
+    });
+    const html = resp.data;
+    const $ = cheerio.load(html);
+
+    // 提取电量
+    const text = $("body").text();
+    const match = text.match(/剩余电量[\s\S]*?(\d+\.?\d*)度/);
+
+    if (!match) return null;
+    return match[1];
+  } catch (e) {
+    console.error("获取电量失败:", e.message);
+    return null;
+  }
+}
+
+// API 接口：访问 http://localhost:3000/api/power?room=333
+app.get("/api/power", async (req, res) => {
+  const roomId = req.query.room;
+  
+  // 验证房间号
+  if (!roomId) {
+    return res.json({ 
+      success: false, 
+      msg: "请提供房间号" 
+    });
+  }
+  
+  if (!/^\d+$/.test(roomId)) {
+    return res.json({ 
+      success: false, 
+      msg: "房间号格式不正确" 
+    });
+  }
+
+  const power = await fetchPower(roomId);
+  if (!power) {
+    return res.json({ 
+      success: false, 
+      msg: "无法获取电量，请检查房间号是否正确或学校系统暂时不可用" 
+    });
+  }
+  res.json({ 
+    success: true, 
+    room: parseInt(roomId), 
+    power: parseFloat(power),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 启动服务器
+app.listen(PORT, () => {
+  console.log(`服务器已启动：http://localhost:${PORT}`);
+});
+

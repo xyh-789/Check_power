@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寝室电量查询系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #fafafa;
+            color: #09090b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e4e4e7;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid #e4e4e7;
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #09090b;
+        }
+
+        .card-description {
+            font-size: 14px;
+            color: #71717a;
+            margin-top: 4px;
+        }
+
+        .card-content {
+            padding: 24px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #f4f4f5;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #71717a;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #09090b;
+        }
+
+        .power-value {
+            font-size: 32px;
+            color: #09090b;
+        }
+
+        .power-unit {
+            font-size: 18px;
+            color: #71717a;
+            margin-left: 4px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .button {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: #09090b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 16px;
+        }
+
+        .button:hover {
+            background-color: #27272a;
+        }
+
+        .button:disabled {
+            background-color: #e4e4e7;
+            color: #a1a1aa;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #09090b;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .timestamp {
+            text-align: center;
+            font-size: 12px;
+            color: #a1a1aa;
+            margin-top: 16px;
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 16px;
+            border: 1px solid #fecaca;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+            border-radius: 4px;
+            height: 20px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #09090b;
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #e4e4e7;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #09090b;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #09090b;
+        }
+
+        .input::placeholder {
+            color: #a1a1aa;
+        }
+
+        .button-secondary {
+            padding: 10px 20px;
+            background-color: #09090b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .button-secondary:hover {
+            background-color: #27272a;
+        }
+
+        .button-secondary:disabled {
+            background-color: #e4e4e7;
+            color: #a1a1aa;
+            cursor: not-allowed;
+        }
+
+        .divider {
+            height: 1px;
+            background-color: #e4e4e7;
+            margin: 24px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">寝室电量查询</h1>
+                <p class="card-description">实时查询寝室剩余电量</p>
+            </div>
+            <div class="card-content">
+                <div class="input-group">
+                    <label class="input-label">房间号</label>
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="roomInput" 
+                            class="input" 
+                            placeholder="请输入房间号，例如：333"
+                            maxlength="4"
+                        />
+                        <button id="queryBtn" class="button-secondary">
+                            查询
+                        </button>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div id="resultSection" style="display: none;">
+                    <div class="info-row">
+                        <span class="info-label">房间号</span>
+                        <span class="info-value" id="roomDisplay">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">剩余电量</span>
+                        <div id="powerDisplay">
+                            <span class="info-value">--</span>
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">状态</span>
+                        <span id="statusBadge" class="status-badge status-success">正常</span>
+                    </div>
+
+                    <div class="timestamp" id="timestamp"></div>
+                </div>
+
+                <div id="errorMessage"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        async function fetchPowerData() {
+            if (isLoading) return;
+            
+            const roomInput = document.getElementById('roomInput');
+            const queryBtn = document.getElementById('queryBtn');
+            const roomDisplay = document.getElementById('roomDisplay');
+            const powerDisplay = document.getElementById('powerDisplay');
+            const statusBadge = document.getElementById('statusBadge');
+            const timestamp = document.getElementById('timestamp');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultSection = document.getElementById('resultSection');
+
+            const roomId = roomInput.value.trim();
+
+            // 验证房间号
+            if (!roomId) {
+                errorMessage.innerHTML = '<div class="error-message">请输入房间号。</div>';
+                roomInput.focus();
+                return;
+            }
+
+            if (!/^\d+$/.test(roomId)) {
+                errorMessage.innerHTML = '<div class="error-message">房间号格式不正确，请输入纯数字。</div>';
+                roomInput.focus();
+                return;
+            }
+
+            isLoading = true;
+            queryBtn.disabled = true;
+            queryBtn.innerHTML = '<span class="loading"></span>查询中';
+            errorMessage.innerHTML = '';
+            resultSection.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/power?room=${roomId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const power = parseFloat(data.power);
+                    
+                    // 显示结果区域
+                    resultSection.style.display = 'block';
+                    
+                    // 更新房间号显示
+                    roomDisplay.textContent = data.room;
+                    
+                    // 更新电量显示
+                    powerDisplay.innerHTML = `
+                        <span class="power-value">${power.toFixed(2)}</span>
+                        <span class="power-unit">度</span>
+                    `;
+
+                    // 更新状态标签
+                    if (power > 20) {
+                        statusBadge.className = 'status-badge status-success';
+                        statusBadge.textContent = '电量充足';
+                    } else if (power > 10) {
+                        statusBadge.className = 'status-badge status-warning';
+                        statusBadge.textContent = '电量偏低';
+                    } else {
+                        statusBadge.className = 'status-badge status-error';
+                        statusBadge.textContent = '电量不足';
+                    }
+
+                    // 更新时间戳
+                    const now = new Date();
+                    timestamp.textContent = `最后更新：${now.toLocaleString('zh-CN')}`;
+                } else {
+                    // 显示错误信息
+                    errorMessage.innerHTML = `<div class="error-message">${data.msg}</div>`;
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                errorMessage.innerHTML = '<div class="error-message">网络请求失败，请检查服务器是否正常运行。</div>';
+            } finally {
+                isLoading = false;
+                queryBtn.disabled = false;
+                queryBtn.textContent = '查询';
+            }
+        }
+
+        // 页面载入时绑定事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const roomInput = document.getElementById('roomInput');
+            const queryBtn = document.getElementById('queryBtn');
+
+            // 绑定查询按钮
+            queryBtn.addEventListener('click', fetchPowerData);
+
+            // 绑定回车键查询
+            roomInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    fetchPowerData();
+                }
+            });
+
+            // 只允许输入数字
+            roomInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^\d]/g, '');
+            });
+        });
+    </script>
+</body>
+</html>
+
