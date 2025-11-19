@@ -193,7 +193,7 @@ app.post("/api/feishu/query", async (req, res) => {
   }
 
   const message = `╔═══════════════════╗
-${emoji} 【电量查询】
+${emoji} 【这是您的寝室电量查询】
 ╚═══════════════════╝
 
 🏠 房间号：${roomIdStr}
