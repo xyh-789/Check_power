@@ -255,8 +255,8 @@
     <div class="container">
         <div class="card">
             <div class="card-header">
-                <h1 class="card-title">寝室电量查询</h1>
-                <p class="card-description">实时查询寝室剩余电量</p>
+                <h1 class="card-title">寝室实时电量</h1>
+                <p class="card-description">自动记住寝室号，每 30 秒更新</p>
             </div>
             <div class="card-content">
                 <div class="input-group">
@@ -303,6 +303,8 @@
 
     <script>
         let isLoading = false;
+        let autoRefreshInterval = null;
+        const STORAGE_KEY = 'saved_room_id';
 
         async function fetchPowerData() {
             if (isLoading) return;
@@ -335,7 +337,6 @@
             queryBtn.disabled = true;
             queryBtn.innerHTML = '<span class="loading"></span>查询中';
             errorMessage.innerHTML = '';
-            resultSection.style.display = 'none';
 
             try {
                 const response = await fetch(`/api/power?room=${roomId}`);
@@ -343,6 +344,9 @@
 
                 if (data.success) {
                     const power = parseFloat(data.power);
+                    
+                    // 保存寝室号到 localStorage
+                    localStorage.setItem(STORAGE_KEY, roomId);
                     
                     // 显示结果区域
                     resultSection.style.display = 'block';
@@ -371,17 +375,85 @@
                     // 更新时间戳
                     const now = new Date();
                     timestamp.textContent = `最后更新：${now.toLocaleString('zh-CN')}`;
+                    
+                    // 启动自动刷新
+                    startAutoRefresh();
                 } else {
                     // 显示错误信息
                     errorMessage.innerHTML = `<div class="error-message">${data.msg}</div>`;
+                    resultSection.style.display = 'none';
                 }
             } catch (error) {
                 console.error('请求失败:', error);
                 errorMessage.innerHTML = '<div class="error-message">网络请求失败，请检查服务器是否正常运行。</div>';
+                resultSection.style.display = 'none';
             } finally {
                 isLoading = false;
                 queryBtn.disabled = false;
                 queryBtn.textContent = '查询';
+            }
+        }
+
+        // 自动刷新功能（仅刷新电量，不重新验证）
+        async function autoRefreshPower() {
+            const roomInput = document.getElementById('roomInput');
+            const roomId = roomInput.value.trim();
+            
+            if (!roomId || isLoading) return;
+
+            const powerDisplay = document.getElementById('powerDisplay');
+            const statusBadge = document.getElementById('statusBadge');
+            const timestamp = document.getElementById('timestamp');
+
+            try {
+                const response = await fetch(`/api/power?room=${roomId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const power = parseFloat(data.power);
+                    
+                    // 更新电量显示
+                    powerDisplay.innerHTML = `
+                        <span class="power-value">${power.toFixed(2)}</span>
+                        <span class="power-unit">度</span>
+                    `;
+
+                    // 更新状态标签
+                    if (power > 20) {
+                        statusBadge.className = 'status-badge status-success';
+                        statusBadge.textContent = '电量充足';
+                    } else if (power > 10) {
+                        statusBadge.className = 'status-badge status-warning';
+                        statusBadge.textContent = '电量偏低';
+                    } else {
+                        statusBadge.className = 'status-badge status-error';
+                        statusBadge.textContent = '电量不足';
+                    }
+
+                    // 更新时间戳
+                    const now = new Date();
+                    timestamp.textContent = `最后更新：${now.toLocaleString('zh-CN')}`;
+                }
+            } catch (error) {
+                console.error('自动刷新失败:', error);
+            }
+        }
+
+        // 启动自动刷新
+        function startAutoRefresh() {
+            // 清除已存在的定时器
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            // 每 30 秒刷新一次
+            autoRefreshInterval = setInterval(autoRefreshPower, 30000);
+        }
+
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
             }
         }
 
@@ -390,12 +462,24 @@
             const roomInput = document.getElementById('roomInput');
             const queryBtn = document.getElementById('queryBtn');
 
+            // 尝试从 localStorage 读取之前保存的寝室号
+            const savedRoomId = localStorage.getItem(STORAGE_KEY);
+            if (savedRoomId) {
+                roomInput.value = savedRoomId;
+                // 自动查询上次的寝室号
+                fetchPowerData();
+            }
+
             // 绑定查询按钮
-            queryBtn.addEventListener('click', fetchPowerData);
+            queryBtn.addEventListener('click', () => {
+                stopAutoRefresh(); // 停止当前的自动刷新
+                fetchPowerData();
+            });
 
             // 绑定回车键查询
             roomInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
+                    stopAutoRefresh(); // 停止当前的自动刷新
                     fetchPowerData();
                 }
             });
