@@ -23,26 +23,34 @@ npm start
 
 3. 访问 `http://localhost:3000`
 
-## 部署方式
+## 在线部署
 
-### 方式一：Railway 部署（推荐）
+### 使用 Render 部署（推荐，完全免费）
 
-1. 注册 [Railway](https://railway.app/) 账号
-2. 连接 GitHub 仓库或直接上传代码
-3. Railway 会自动检测并部署
-4. 获得部署链接
+1. **访问 Render**
+   - 打开 https://render.com
+   - 使用 GitHub 账号登录
 
-### 方式二：Render 部署
+2. **创建 Web Service**
+   - 点击 "New +" → "Web Service"
+   - 选择 `Check_power` 仓库
 
-1. 注册 [Render](https://render.com/) 账号
-2. 创建新的 Web Service
-3. 连接 GitHub 仓库
-4. 构建命令：`npm install`
-5. 启动命令：`npm start`
+3. **配置服务**
+   - Name: `check-power`
+   - Environment: `Node`
+   - Build Command: `npm install`
+   - Start Command: `npm start`
 
-### 方式三：云服务器部署
+4. **部署**
+   - 点击 "Create Web Service"
+   - 等待 2-3 分钟自动部署完成
+   - 获得免费的访问链接
 
-需要一台 Linux 服务器（如阿里云、腾讯云）。
+**特点**：
+- ✅ 完全免费（无需信用卡）
+- ✅ 自动 HTTPS
+- ✅ GitHub 自动部署
+- ✅ 750 小时/月免费运行时间
 
 ## 技术栈
 
