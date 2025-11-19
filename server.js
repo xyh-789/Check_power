@@ -192,7 +192,17 @@ app.post("/api/feishu/query", async (req, res) => {
     emoji = "🔴";
   }
 
-  const message = `${emoji} 【电量查询】\n\n房间号：${roomIdStr}\n剩余电量：${powerNum.toFixed(2)} 度\n状态：${status}\n\n更新时间：${timeStr}`;
+  const message = `╔═══════════════════╗
+${emoji} 【电量查询】
+╚═══════════════════╝
+
+🏠 房间号：${roomIdStr}
+⚡ 剩余电量：${powerNum.toFixed(2)} 度
+📊 状态：${status}
+
+🕐 更新时间：${timeStr}
+━━━━━━━━━━━━━━━━━━━`;
+
   
   // 返回 JSON 格式
   const successResponse = { 
