@@ -40,10 +40,25 @@
             border-bottom: 1px solid #e4e4e7;
         }
 
+        .card-title-row {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
         .card-title {
             font-size: 24px;
             font-weight: 600;
             color: #09090b;
+        }
+
+        .card-badge {
+            font-size: 12px;
+            color: #71717a;
+            background-color: #f4f4f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
         }
 
         .card-description {
@@ -255,7 +270,10 @@
     <div class="container">
         <div class="card">
             <div class="card-header">
-                <h1 class="card-title">寝室实时电量</h1>
+                <div class="card-title-row">
+                    <h1 class="card-title">寝室实时电量</h1>
+                    <span class="card-badge">只限容园1号</span>
+                </div>
                 <p class="card-description">自动记住寝室号，每 30 秒更新</p>
             </div>
             <div class="card-content">
