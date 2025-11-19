@@ -2,16 +2,35 @@ const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const path = require("path");
-const fs = require("fs");
+const mongoose = require("mongoose");
 const cron = require("node-cron");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 数据文件路径
-const DATA_FILE = path.join(__dirname, "power_data.json");
+// MongoDB 连接字符串（从环境变量读取）
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/check_power";
 // 监控的寝室号
 const MONITORED_ROOM = "433";
+
+// 定义数据模型
+const powerDataSchema = new mongoose.Schema({
+  roomId: { type: String, required: true, unique: true },
+  yesterday: { type: Number, default: null },
+  today: { type: Number, default: null },
+  lastUpdate: { type: Date, default: Date.now }
+});
+
+const PowerData = mongoose.model("PowerData", powerDataSchema);
+
+// 连接 MongoDB
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log("✅ MongoDB 连接成功");
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB 连接失败:", err.message);
+  });
 
 // 飞书请求特殊处理 - 必须在其他中间件之前
 app.use('/api/feishu', express.raw({ type: '*/*' }));
@@ -27,26 +46,36 @@ app.use(express.text());
 app.use(express.static("public"));
 
 // 读取电量数据
-function readPowerData() {
+async function readPowerData(roomId) {
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      return {};
-    }
-    const data = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(data);
+    const data = await PowerData.findOne({ roomId });
+    return data;
   } catch (e) {
-    console.error("读取数据文件失败:", e.message);
-    return {};
+    console.error("读取数据失败:", e.message);
+    return null;
   }
 }
 
 // 保存电量数据
-function savePowerData(data) {
+async function savePowerData(roomId, yesterday, today) {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+    const data = await PowerData.findOneAndUpdate(
+      { roomId },
+      { 
+        yesterday, 
+        today, 
+        lastUpdate: new Date() 
+      },
+      { 
+        upsert: true, 
+        new: true 
+      }
+    );
     console.log("数据已保存:", data);
+    return data;
   } catch (e) {
-    console.error("保存数据文件失败:", e.message);
+    console.error("保存数据失败:", e.message);
+    return null;
   }
 }
 
@@ -62,25 +91,21 @@ async function updateDailyPower() {
   }
 
   const powerNum = parseFloat(power);
-  const data = readPowerData();
+  
+  // 读取现有数据
+  const existingData = await readPowerData(MONITORED_ROOM);
+  
+  let yesterday = null;
+  let today = powerNum;
   
   // 如果有今日数据，将其移到昨日
-  if (data[MONITORED_ROOM]) {
-    data[MONITORED_ROOM].yesterday = data[MONITORED_ROOM].today;
-  } else {
-    // 首次运行，初始化数据
-    data[MONITORED_ROOM] = {
-      yesterday: null,
-      today: null
-    };
+  if (existingData && existingData.today !== null) {
+    yesterday = existingData.today;
   }
   
-  // 保存新的今日数据
-  data[MONITORED_ROOM].today = powerNum;
-  data[MONITORED_ROOM].lastUpdate = new Date().toISOString();
-  
-  savePowerData(data);
-  console.log(`433 寝室电量已更新: 今日 0 点 ${powerNum} 度`);
+  // 保存新的数据
+  await savePowerData(MONITORED_ROOM, yesterday, today);
+  console.log(`433 寝室电量已更新: 昨日 0 点 ${yesterday} 度, 今日 0 点 ${today} 度`);
   console.log("=======================================");
 }
 
@@ -144,16 +169,36 @@ app.get("/api/power", async (req, res) => {
   
   // 只对 433 寝室添加昨日用电量
   if (roomId === MONITORED_ROOM) {
-    const data = readPowerData();
-    if (data[MONITORED_ROOM] && data[MONITORED_ROOM].yesterday !== null && data[MONITORED_ROOM].today !== null) {
-      const yesterdayUsage = data[MONITORED_ROOM].yesterday - data[MONITORED_ROOM].today;
+    const data = await readPowerData(MONITORED_ROOM);
+    if (data && data.yesterday !== null && data.today !== null) {
+      const yesterdayUsage = data.yesterday - data.today;
       responseData.yesterdayUsage = parseFloat(yesterdayUsage.toFixed(2));
-      responseData.yesterdayPower = data[MONITORED_ROOM].yesterday;
-      responseData.todayPower = data[MONITORED_ROOM].today;
+      responseData.yesterdayPower = data.yesterday;
+      responseData.todayPower = data.today;
     }
   }
   
   res.json(responseData);
+});
+
+// 手动触发电量更新的接口（供 cron-job.org 调用）
+app.get("/api/update-daily-power", async (req, res) => {
+  console.log("收到手动更新请求");
+  
+  try {
+    await updateDailyPower();
+    res.json({ 
+      success: true, 
+      message: "电量数据已更新",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("手动更新失败:", error);
+    res.json({ 
+      success: false, 
+      message: "更新失败: " + error.message 
+    });
+  }
 });
 
 // 飞书机器人专用接口

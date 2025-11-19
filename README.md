@@ -7,21 +7,41 @@
 - 输入房间号查询电量
 - 实时显示剩余电量
 - 根据电量自动显示状态（充足/偏低/不足）
+- **433 寝室昨日用电量查询**（每天凌晨 0:00 自动记录）
+- 数据持久化存储（MongoDB）
 - 响应式设计，支持手机和电脑访问
 
 ## 本地运行
+
+### 快速开始
 
 1. 安装依赖：
 ```bash
 npm install
 ```
 
-2. 启动服务器：
+2. 配置环境变量（可选，不配置则使用本地 MongoDB）：
+```bash
+# Windows PowerShell
+$env:MONGODB_URI="your_mongodb_connection_string"
+
+# Linux/Mac
+export MONGODB_URI="your_mongodb_connection_string"
+```
+
+3. 启动服务器：
 ```bash
 npm start
 ```
 
-3. 访问 `http://localhost:3000`
+4. 访问 `http://localhost:3000`
+
+### 完整配置（包含昨日用电量功能）
+
+详细配置步骤请查看 [SETUP.md](./SETUP.md)，包括：
+- MongoDB Atlas 免费数据库设置
+- Render 环境变量配置
+- cron-job.org 定时任务设置
 
 ## 在线部署
 
@@ -57,6 +77,8 @@ npm start
 - **后端**：Node.js + Express
 - **前端**：原生 HTML/CSS/JavaScript
 - **数据获取**：Axios + Cheerio
+- **数据库**：MongoDB (Mongoose)
+- **定时任务**：node-cron + cron-job.org
 
 ## License
 
