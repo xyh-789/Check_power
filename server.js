@@ -317,6 +317,15 @@ app.post("/api/feishu/query", async (req, res) => {
     emoji = "🔴";
   }
 
+  // 获取昨日用电量（仅 433 寝室）
+  let yesterdayUsage = null;
+  if (roomIdStr === "433") {
+    const data = await readPowerData("433");
+    if (data && data.yesterday !== null && data.today !== null) {
+      yesterdayUsage = data.yesterday - data.today;
+    }
+  }
+
   // 特殊处理：433 寝室定时查询时，只在电量小于 5 度时发送警告消息
   if (isAutoQuery && roomIdStr === "433" && powerNum >= 5) {
     // 433 寝室定时查询且电量充足时，返回空消息（飞书不会发送）
@@ -333,31 +342,48 @@ app.post("/api/feishu/query", async (req, res) => {
   
   let message;
   if (roomIdStr === "433" && powerNum < 5) {
-    message = `╔═══════════════════╗
+    // 紧急警告消息
+    let warningMsg = `╔═══════════════════╗
 🚨 【紧急电量警告】
 ╚═══════════════════╝
 
 ⚠️ 433 寝室电量严重不足！
 ⚡ 剩余电量：${powerNum.toFixed(2)} 度
-🔴 状态：${status}
+🔴 状态：${status}`;
+    
+    // 添加昨日用电量
+    if (yesterdayUsage !== null) {
+      warningMsg += `\n📊 昨日用电：${yesterdayUsage.toFixed(2)} 度`;
+    }
+    
+    warningMsg += `
 
 ⚠️ 请立即充值，避免断电！
 
 🕐 更新时间：${timeStr}
 ━━━━━━━━━━━━━━━━━━━`;
+    message = warningMsg;
     console.log(">>> 433 寝室电量低于 5 度，发送警告消息");
   } else {
-    // 其他寝室正常显示
-    message = `╔═══════════════════╗
+    // 正常显示
+    let normalMsg = `╔═══════════════════╗
 ${emoji} 【这是${roomIdStr}寝室的电量查询】
 ╚═══════════════════╝
 
 🏠 房间号：${roomIdStr}
-⚡ 剩余电量：${powerNum.toFixed(2)} 度
+⚡ 剩余电量：${powerNum.toFixed(2)} 度`;
+    
+    // 只对 433 寝室添加昨日用电量
+    if (roomIdStr === "433" && yesterdayUsage !== null) {
+      normalMsg += `\n📊 昨日用电：${yesterdayUsage.toFixed(2)} 度`;
+    }
+    
+    normalMsg += `
 📊 状态：${status}
 
 🕐 更新时间：${timeStr}
 ━━━━━━━━━━━━━━━━━━━`;
+    message = normalMsg;
   }
 
   
