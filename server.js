@@ -1,3 +1,10 @@
+// 加载环境变量（如果存在 .env 文件）
+try {
+  require('dotenv').config();
+} catch (e) {
+  // dotenv 未安装时忽略错误
+}
+
 const express = require("express");
 const axios = require("axios");
 const cheerio = require("cheerio");

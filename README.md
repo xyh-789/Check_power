@@ -39,38 +39,77 @@ npm start
 ### 完整配置（包含昨日用电量功能）
 
 详细配置步骤请查看 [SETUP.md](./SETUP.md)，包括：
-- MongoDB Atlas 免费数据库设置
-- Render 环境变量配置
-- cron-job.org 定时任务设置
+- MongoDB 数据库设置（MongoDB Atlas 或阿里云 MongoDB）
+- 阿里云服务器环境变量配置
+- 定时任务设置（使用系统 cron 或阿里云云监控）
 
 ## 在线部署
 
-### 使用 Render 部署（推荐，完全免费）
+### 使用阿里云 ECS 部署
 
-1. **访问 Render**
-   - 打开 https://render.com
-   - 使用 GitHub 账号登录
+**详细部署步骤请查看 [DEPLOY_ALIYUN.md](./DEPLOY_ALIYUN.md)**
 
-2. **创建 Web Service**
-   - 点击 "New +" → "Web Service"
-   - 选择 `Check_power` 仓库
+### 快速部署
 
-3. **配置服务**
-   - Name: `check-power`
-   - Environment: `Node`
-   - Build Command: `npm install`
-   - Start Command: `npm start`
+1. **购买阿里云 ECS 服务器**
+   - 访问 https://www.aliyun.com/product/ecs
+   - 选择适合的配置（推荐：1核2G，CentOS 7+ 或 Ubuntu 20.04+）
+   - 配置安全组，开放 80、443、3000 端口
 
-4. **部署**
-   - 点击 "Create Web Service"
-   - 等待 2-3 分钟自动部署完成
-   - 获得免费的访问链接
+2. **连接服务器并安装环境**
+   ```bash
+   # 更新系统
+   sudo yum update -y  # CentOS
+   # 或
+   sudo apt update && sudo apt upgrade -y  # Ubuntu
+   
+   # 安装 Node.js 18+
+   curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -  # CentOS
+   sudo yum install -y nodejs
+   # 或
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -  # Ubuntu
+   sudo apt-get install -y nodejs
+   
+   # 安装 PM2（进程管理）
+   sudo npm install -g pm2
+   
+   # 安装 Nginx（可选，用于反向代理）
+   sudo yum install -y nginx  # CentOS
+   # 或
+   sudo apt install -y nginx  # Ubuntu
+   ```
+
+3. **部署应用**
+   ```bash
+   # 克隆项目
+   git clone <your-repo-url>
+   cd check_power
+   
+   # 安装依赖
+   npm install
+   
+   # 配置环境变量
+   # 编辑 ~/.bashrc 或创建 .env 文件
+   export MONGODB_URI="your_mongodb_connection_string"
+   export PORT=3000
+   
+   # 使用 PM2 启动应用
+   pm2 start server.js --name check-power
+   pm2 save
+   pm2 startup  # 设置开机自启
+   ```
+
+4. **配置 Nginx 反向代理（推荐）**
+   - 参考 `nginx.conf.example` 配置文件
+   - 配置域名和 SSL 证书（可选）
 
 **特点**：
-- ✅ 完全免费（无需信用卡）
-- ✅ 自动 HTTPS
-- ✅ GitHub 自动部署
-- ✅ 750 小时/月免费运行时间
+- ✅ 稳定可靠，国内访问速度快
+- ✅ 完全控制服务器环境
+- ✅ 支持自定义域名和 SSL
+- ✅ 可使用系统 cron 定时任务
+
+**详细部署步骤请查看 [DEPLOY_ALIYUN.md](./DEPLOY_ALIYUN.md)**
 
 ## 技术栈
 
@@ -78,7 +117,7 @@ npm start
 - **前端**：原生 HTML/CSS/JavaScript
 - **数据获取**：Axios + Cheerio
 - **数据库**：MongoDB (Mongoose)
-- **定时任务**：node-cron + cron-job.org
+- **定时任务**：node-cron + 系统 cron（或阿里云云监控）
 
 ## License
 
